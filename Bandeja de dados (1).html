@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bandeja de dados</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Alegreya+Sans:wght@400;700&display=swap">
+<style>
+:root{
+  --page:#f1e9db; --ink:#2b1d12; --muted:#6d5a47; --rim:#4a2f1c; --rim2:#33200f;
+  --felt:#17463f; --felt2:#0f332e; --die:#f4ecd8; --die-edge:#8a7a5c; --num:#231810;
+  --accent:#b8872b; --crit:#c99a1e; --fail:#a8372b; --btn:#e3d6bd; --card:#eadfc8;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --page:#1a120b; --ink:#f0e5d0; --muted:#b09d84; --rim:#5a3a22; --rim2:#3a2414;
+    --btn:#46331f; --card:#2a1d13; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#1a120b; --ink:#f0e5d0; --muted:#b09d84; --rim:#5a3a22; --rim2:#3a2414;
+  --btn:#46331f; --card:#2a1d13; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--ink);font-family:"Alegreya Sans",system-ui,sans-serif;font-size:18px;line-height:1.35}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--page);z-index:10}
+main{max-width:640px;margin:0 auto;padding:20px 16px 40px}
+h1{font-family:Fraunces,Georgia,serif;font-size:28px;margin:0 0 6px}
+.hint{margin:0 0 14px;color:var(--muted);font-size:16px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.pool{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media (min-width:520px){.pool{grid-template-columns:repeat(4,1fr)}}
+.card{display:flex;align-items:center;justify-content:space-between;gap:4px;background:var(--card);border-radius:12px;padding:6px 6px 6px 12px}
+.card b{font-family:Fraunces,Georgia,serif;font-size:20px}
+.card.on{outline:2px solid var(--accent)}
+.step{display:flex;align-items:center;gap:2px}
+.step button{width:36px;height:36px;border-radius:50%;border:0;background:var(--btn);font-size:22px;font-weight:700;line-height:1}
+.step output{min-width:1.6ch;text-align:center;font-weight:700}
+.clear{border:2px dashed var(--muted);background:none;border-radius:12px;color:var(--muted);font-weight:700}
+.sel{margin:12px 0 0;font-weight:700;min-height:1.4em}
+.tray{margin-top:14px;padding:14px;border-radius:22px;background:linear-gradient(var(--rim),var(--rim2));box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.felt{position:relative;overflow:hidden;height:340px;border-radius:12px;background:radial-gradient(ellipse at 50% 40%,var(--felt),var(--felt2));box-shadow:inset 0 4px 14px rgba(0,0,0,.6)}
+.empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 24px;color:#bcd3cb;margin:0}
+.die{position:absolute;filter:drop-shadow(0 4px 3px rgba(0,0,0,.5))}
+.die svg{width:100%;height:100%;display:block}
+.die polygon,.die rect{fill:var(--die);stroke:var(--die-edge);stroke-width:3;stroke-linejoin:round}
+.die span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Fraunces,Georgia,serif;font-weight:700;color:var(--num);font-size:calc(var(--s)*.34)}
+.die small{position:absolute;right:2%;bottom:-2%;font:700 calc(var(--s)*.17) "Alegreya Sans",sans-serif;color:var(--muted);opacity:0}
+.die.t4 span{padding-top:22%}
+.die.max polygon,.die.max rect{fill:var(--crit)}
+.die.min polygon,.die.min rect{fill:#e9b7ae}
+.die.min span{color:var(--fail)}
+.go{display:block;width:100%;margin-top:16px;padding:16px;border:0;border-radius:14px;background:var(--accent);color:#1d1306;font-size:22px;font-weight:700}
+.go:disabled{opacity:.5;cursor:default}
+.total{margin-top:16px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.total strong{font-family:Fraunces,Georgia,serif;font-size:52px;line-height:1}
+.total small{color:var(--muted);font-size:17px}
+.hist{margin:14px 0 0;padding:0;list-style:none;color:var(--muted);font-size:16px}
+.hist li{padding:5px 0;border-top:1px solid color-mix(in srgb,var(--muted) 30%,transparent)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Bandeja de dados</h1>
+  <p class="hint">Monte sua jogada: misture quantos dados e tipos quiser.</p>
+
+  <div class="pool" id="pool"></div>
+  <p class="sel" id="sel" aria-live="polite"></p>
+
+  <div class="tray"><div class="felt" id="felt"><p class="empty" id="empty">Escolha os dados e toque em jogar.</p></div></div>
+
+  <button class="go" id="go" disabled>Jogar dados</button>
+
+  <div class="total" aria-live="polite"><strong id="sum"></strong><small id="detail"></small></div>
+  <ul class="hist" id="hist"></ul>
+</main>
+
+<script>
+(function(){
+  var SIDES=[4,6,8,10,12,20,100], MAX=30;
+  var SHAPES={
+    4:'<polygon points="50,8 94,86 6,86"/>',
+    6:'<rect x="9" y="9" width="82" height="82" rx="14"/>',
+    8:'<polygon points="50,4 94,50 50,96 6,50"/>',
+    10:'<polygon points="50,4 92,40 50,96 8,40"/>',
+    12:'<polygon points="50,6 93,37 77,90 23,90 7,37"/>',
+    20:'<polygon points="50,4 92,27 92,73 50,96 8,73 8,27"/>',
+    100:'<polygon points="50,4 92,40 50,96 8,40"/>'
+  };
+  var pool={},hist=[],busy=false,timer=null;
+  SIDES.forEach(function(n){pool[n]=0});
+  pool[20]=1;
+  var $=function(id){return document.getElementById(id)};
+  var poolEl=$('pool'),felt=$('felt'),emptyEl=$('empty'),selEl=$('sel'),sumEl=$('sum'),detailEl=$('detail'),histEl=$('hist'),goEl=$('go');
+  var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var cards={};
+
+  function total(){return SIDES.reduce(function(a,n){return a+pool[n]},0)}
+  function label(){
+    var parts=SIDES.filter(function(n){return pool[n]>0}).map(function(n){return pool[n]+'d'+n});
+    return parts.join(' + ');
+  }
+  function refresh(){
+    SIDES.forEach(function(n){
+      var c=cards[n];c.out.textContent=pool[n];c.el.classList.toggle('on',pool[n]>0);
+    });
+    selEl.textContent=total()?label():'Nenhum dado escolhido';
+    goEl.disabled=busy||total()===0;
+  }
+  function change(n,d){
+    if(busy)return;
+    var v=pool[n]+d;if(v<0||(d>0&&total()>=MAX))return;
+    pool[n]=v;refresh();
+  }
+
+  SIDES.forEach(function(n){
+    var el=document.createElement('div');el.className='card';
+    el.innerHTML='<b>d'+n+'</b><div class="step"><button aria-label="Menos d'+n+'">−</button><output>0</output><button aria-label="Mais d'+n+'">+</button></div>';
+    var b=el.querySelectorAll('button');
+    b[0].onclick=function(){change(n,-1)};
+    b[1].onclick=function(){change(n,1)};
+    cards[n]={el:el,out:el.querySelector('output')};
+    poolEl.appendChild(el);
+  });
+  var clr=document.createElement('button');clr.className='clear';clr.textContent='Limpar';
+  clr.onclick=function(){if(busy)return;SIDES.forEach(function(n){pool[n]=0});refresh()};
+  poolEl.appendChild(clr);
+
+  function rnd(n){return 1+Math.floor(Math.random()*n)}
+  function rr(a,b){return a+Math.random()*(b-a)}
+
+  function layout(n,s,W,H){
+    var pts=[],m=s*.75,gap=s*1.0;
+    for(var i=0;i<n;i++){
+      var best=null,tries=0,g=gap;
+      while(tries<250){
+        var x=rr(m,W-m),y=rr(m,H-m),ok=true;
+        for(var j=0;j<pts.length;j++){
+          var dx=pts[j][0]-x,dy=pts[j][1]-y;
+          if(dx*dx+dy*dy<g*g){ok=false;break}
+        }
+        if(ok){best=[x,y];break}
+        tries++;if(tries%50===0)g*=.88;
+      }
+      pts.push(best||[rr(m,W-m),rr(m,H-m)]);
+    }
+    return pts;
+  }
+
+  function startPoint(W,H,s){
+    var e=Math.floor(Math.random()*4),o=s*1.2;
+    if(e===0)return[rr(0,W),-o];
+    if(e===1)return[W+o,rr(0,H)];
+    if(e===2)return[rr(0,W),H+o];
+    return[-o,rr(0,H)];
+  }
+
+  function roll(){
+    if(busy||!total())return;
+    busy=true;refresh();
+    var list=[];
+    SIDES.forEach(function(n){for(var i=0;i<pool[n];i++)list.push(n)});
+    var n=list.length,s=n<=3?88:n<=8?70:n<=16?56:46;
+    var W=felt.clientWidth,H=felt.clientHeight;
+    emptyEl.style.display='none';
+    [].slice.call(felt.querySelectorAll('.die')).forEach(function(d){d.remove()});
+    var pts=layout(n,s,W,H),dice=[],vals=[];
+    list.forEach(function(sd,i){
+      var d=document.createElement('div');
+      d.className='die t'+sd;
+      d.style.cssText='width:'+s+'px;height:'+s+'px;--s:'+s+'px;left:'+(pts[i][0]-s/2)+'px;top:'+(pts[i][1]-s/2)+'px';
+      d.innerHTML='<svg viewBox="0 0 100 100" aria-hidden="true">'+SHAPES[sd]+'</svg><span>'+rnd(sd)+'</span>';
+      felt.appendChild(d);dice.push(d);vals.push(rnd(sd));
+    });
+    timer=setInterval(function(){
+      dice.forEach(function(d,i){if(!d.dataset.done)d.lastChild.textContent=rnd(list[i])});
+    },70);
+    var done=0;
+    dice.forEach(function(d,i){
+      var rf=rr(-38,38),delay=i*70,dur=reduce?200:rr(950,1350);
+      var st=startPoint(W,H,s),dx=st[0]-pts[i][0],dy=st[1]-pts[i][1];
+      var r0=rf+(Math.random()<.5?-1:1)*rr(540,1080);
+      function fin(){
+        d.dataset.done='1';d.style.transform='rotate('+rf+'deg)';
+        d.lastChild.textContent=vals[i];
+        if(vals[i]===list[i])d.classList.add('max');
+        else if(vals[i]===1&&list[i]!==100)d.classList.add('min');
+        if(++done===n)finish(list,vals);
+      }
+      if(reduce){setTimeout(fin,dur+delay);return}
+      var a=d.animate([
+        {transform:'translate('+dx+'px,'+dy+'px) rotate('+r0+'deg) scale(1.3)',offset:0,easing:'cubic-bezier(.15,.7,.35,1)'},
+        {transform:'translate('+(-dx*.1)+'px,'+(-dy*.1)+'px) rotate('+(rf+(r0-rf)*.12)+'deg) scale(1)',offset:.6,easing:'ease-in-out'},
+        {transform:'translate('+(dx*.04)+'px,'+(dy*.04)+'px) rotate('+(rf-6)+'deg) scale(1.07)',offset:.8,easing:'ease-out'},
+        {transform:'translate(0,0) rotate('+rf+'deg) scale(1)',offset:1}
+      ],{duration:dur,delay:delay,fill:'both'});
+      a.onfinish=function(){fin();a.cancel()};
+    });
+  }
+
+  function finish(list,vals){
+    clearInterval(timer);
+    var sum=vals.reduce(function(a,b){return a+b},0),by={};
+    list.forEach(function(sd,i){(by[sd]=by[sd]||[]).push(vals[i])});
+    var detail=SIDES.filter(function(n){return by[n]}).map(function(n){return 'd'+n+': '+by[n].join(', ')}).join('  ·  ');
+    sumEl.textContent=sum;detailEl.textContent=detail;
+    hist.unshift(label()+' → '+sum);hist=hist.slice(0,6);
+    histEl.innerHTML='';
+    hist.forEach(function(t){var li=document.createElement('li');li.textContent=t;histEl.appendChild(li)});
+    busy=false;goEl.textContent='Jogar de novo';refresh();
+  }
+
+  goEl.onclick=roll;
+  refresh();
+})();
+</script>
+</body>
+</html>
